@@ -4,7 +4,7 @@ class Player
   attr_reader :name, :symbol
   def initialize(name, number)
     @name = name
-    @symbol = number == 1 ? '\u2460'.encode('utf-8') : '\u2461'.encode('utf-8')
+    @symbol = number == 1 ? "\u2460".encode('utf-8') : "\u2461".encode('utf-8')
   end
 end
 
@@ -34,6 +34,43 @@ class Board
   def win?(symbol)
     horizontal?(symbol) || vertical?(symbol) || diagonal?(symbol)
   end
+
+  def tie?(p1_symbol, p2_symbol)
+    full? unless win?(p1_symbol) || win?(p2_symbol)
+  end
+
+  def full?
+    @grid.flatten.none?(&:empty?)
+  end
+
+  def col_full?(col)
+    (0..5).each do |row|
+      return false if grid[row][col].empty?
+    end
+    true
+  end
+
+  def add_piece(col, symbol)
+    cell = nil
+    row = 0
+    # find first row in that column with an empty cell
+    until cell || row > 5
+      cell = grid[row][col] if grid[row][col].empty?
+      row += 1
+    end
+
+    cell.fill(symbol)
+  end
+
+  def display
+    grid = @grid.reverse
+    grid.each do |row|
+      puts row.map { |cell| cell.char == '' ? ' ' : cell.char }.join(' | ')
+      puts '-' * 25
+    end
+  end
+
+  private
 
   def diagonal?(symbol)
     # check ascending
@@ -88,39 +125,10 @@ class Board
     end
     false
   end
-
-  def tie?(p1_symbol, p2_symbol)
-    full? unless win?(p1_symbol) || win?(p2_symbol)
-  end
-
-  def full?
-    @grid.flatten.none?(&:empty?)
-  end
-
-  def add_piece(col, symbol)
-    cell = nil
-    row = 0
-    # find first row in that column with an empty cell
-    until cell || row > 5
-      cell = grid[row][col] if grid[row][col].empty?
-      row += 1
-    end
-    raise 'column already full' unless cell
-
-    cell.fill(symbol)
-  end
-
-  def display
-    grid = @grid.reverse
-    grid.each do |row|
-      puts row.map { |cell| cell.char == '' ? ' ' : cell.char }.join(' | ')
-      puts '-' * 25
-    end
-  end
 end
 
 class Game
-
+  attr_reader :p1, :p2, :board, :active_player
   def initialize
     @p1 = nil
     @p2 = nil
@@ -139,19 +147,48 @@ class Game
   end
 
   def choose_starting_player
-    [@p1, @p2].sample
+    @active_player = [@p1, @p2].sample
   end
 
   def switch_active_player
-    @active_player = @active_player == @p1 ? p2 : p1
+    @active_player = @active_player == @p1 ? @p2 : @p1
   end
 
-  def get_move(player)
-    print "#{player}: choose a column to drop your piece. (1-7): "
-    gets.chomp
+  def input_move
+    print "#{@active_player.name}: choose a column to drop your piece (1-7): "
+    move = gets.chomp.to_i - 1
+    return move if valid_move?(move)
+
+    if !move.between?(0, 6)
+      puts 'Invalid column. Please chooose a number between 1 and 7.'
+    else
+      puts 'That column is full already, please choose another'
+    end
+    input_move
   end
 
-  def play
+  def valid_move?(move)
+    return false unless move.between?(0, 6) && !board.col_full?(move)
 
+    true
+  end
+
+  def play_turns
+    puts "#{@active_player.name} will start!"
+    board.display
+    until board.win?(p1.symbol) || \
+          board.win?(p2.symbol) || \
+          board.tie?(p1.symbol, p2.symbol)
+      col = input_move
+      board.add_piece(col, active_player.symbol)
+      board.display
+      switch_active_player
+    end
+  end
+
+  def game_over_message
+    puts "#{p1.name} wins!" if board.win?(p1.symbol)
+    puts "#{p2.name} wins!" if board.win?(p2.symbol)
+    puts "It's a tie!" if board.tie?(p1.symbol, p2.symbol)
   end
 end
