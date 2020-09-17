@@ -1,6 +1,9 @@
 # driver script for starting connect four game
 
-require './connect_four'
+require './lib/cell'
+require './lib/player'
+require './lib/game'
+require './lib/board'
 
 def new_game
   game = Game.new
